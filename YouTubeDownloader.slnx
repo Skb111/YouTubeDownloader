@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/YouTubeDownloader.Application/YouTubeDownloader.Application.csproj" />
+    <Project Path="src/YouTubeDownloader.Domain/YouTubeDownloader.Domain.csproj" />
+    <Project Path="src/YouTubeDownloader.Infrastructure/YouTubeDownloader.Infrastructure.csproj" />
+    <Project Path="src/YouTubeDownloader.Persistence/YouTubeDownloader.Persistence.csproj" />
+    <Project Path="src/YouTubeDownloader.Web/YouTubeDownloader.Web.csproj" />
+  </Folder>
+</Solution>

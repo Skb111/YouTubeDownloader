@@ -1,0 +1,183 @@
+﻿@model YouTubeDownloader.Domain.Entities.DownloadJob
+
+@{
+    ViewData["Title"] = "Download Progress";
+}
+
+@functions {
+    public string FormatBytes(long? bytes)
+    {
+        if (bytes == null || bytes == 0)
+            return "0 MB";
+
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        double len = bytes.Value;
+        int order = 0;
+
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len /= 1024;
+        }
+
+        return $"{len:0.##} {sizes[order]}";
+    }
+}
+
+<div class="container py-5">
+    <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+        <div class="row g-0">
+
+            <div class="col-md-4 bg-dark">
+                <img src="@Model.ThumbnailUrl"
+                     class="img-fluid h-100 w-100"
+                     style="object-fit:cover;" />
+            </div>
+
+            <div class="col-md-8">
+                <div class="card-body p-4">
+
+                    <h3 class="fw-bold mb-3">@Model.VideoTitle</h3>
+
+                    <span id="statusBadge" class="badge bg-primary mb-3">
+                        @Model.Status
+                    </span>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <strong>Progress</strong>
+                            <strong id="progressText">@Model.Progress%</strong>
+                        </div>
+
+                        <div class="progress" style="height: 28px;">
+                            <div id="progressBar"
+                                 class="progress-bar progress-bar-striped progress-bar-animated"
+                                 role="progressbar"
+                                 style="width:@Model.Progress%">
+                                @Model.Progress%
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <div class="border rounded-4 p-3 bg-light">
+                                <small class="text-muted">Downloaded</small>
+                                <h4 id="downloadedBytes" class="fw-bold mb-0">
+                                    @FormatBytes(Model.DownloadedBytes)
+                                </h4>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="border rounded-4 p-3 bg-light">
+                                <small class="text-muted">Total Size</small>
+                                <h4 id="totalBytes" class="fw-bold mb-0">
+                                    @FormatBytes(Model.TotalBytes)
+                                </h4>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="downloadCompletedBox"
+                         style="display:@(Model.Status == YouTubeDownloader.Domain.Enums.DownloadStatus.Completed ? "block" : "none")">
+                        <a href="@Model.OutputFilePath"
+                           class="btn btn-success btn-lg rounded-pill"
+                           download>
+                            Download File
+                        </a>
+                    </div>
+
+                    <div id="downloadFailedBox"
+                         class="alert alert-danger"
+                         style="display:@(Model.Status == YouTubeDownloader.Domain.Enums.DownloadStatus.Failed ? "block" : "none")">
+                        @Model.ErrorMessage
+                    </div>
+
+                    <div id="downloadRunningBox"
+                         class="alert alert-info"
+                         style="display:@(Model.Status == YouTubeDownloader.Domain.Enums.DownloadStatus.Completed || Model.Status == YouTubeDownloader.Domain.Enums.DownloadStatus.Failed ? "none" : "block")">
+                        Download is running. Progress updates live.
+                    </div>
+
+                    <a asp-action="Index"
+                       class="btn btn-outline-secondary btn-lg rounded-pill mt-2">
+                        Back
+                    </a>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+
+<script>
+    const jobId = "@Model.Id";
+
+    function formatBytes(bytes) {
+    if (!bytes || bytes === 0) return "0 MB";
+
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
+    let value = bytes;
+    let index = 0;
+
+    while (value >= 1024 && index < sizes.length - 1) {
+    value = value / 1024;
+    index++;
+    }
+
+    return value.toFixed(2) + " " + sizes[index];
+    }
+
+    const connection = new signalR.HubConnectionBuilder()
+    .withUrl("/downloadProgressHub")
+    .withAutomaticReconnect()
+    .build();
+
+    connection.on("ReceiveDownloadProgress", function (data) {
+    const progressBar = document.getElementById("progressBar");
+    const progressText = document.getElementById("progressText");
+    const statusBadge = document.getElementById("statusBadge");
+    const downloadedBytes = document.getElementById("downloadedBytes");
+    const totalBytes = document.getElementById("totalBytes");
+
+    progressBar.style.width = data.progress + "%";
+    progressBar.innerText = data.progress + "%";
+    progressText.innerText = data.progress + "%";
+
+    downloadedBytes.innerText = formatBytes(data.downloadedBytes);
+    totalBytes.innerText = formatBytes(data.totalBytes);
+
+    statusBadge.innerText = data.status;
+
+    if (data.status === "Completed") {
+    statusBadge.className = "badge bg-success mb-3";
+
+    document.getElementById("downloadRunningBox").style.display = "none";
+    document.getElementById("downloadFailedBox").style.display = "none";
+    document.getElementById("downloadCompletedBox").style.display = "block";
+
+    setTimeout(function () {
+    location.reload();
+    }, 1000);
+    }
+
+    if (data.status === "Failed") {
+    statusBadge.className = "badge bg-danger mb-3";
+
+    document.getElementById("downloadRunningBox").style.display = "none";
+    document.getElementById("downloadFailedBox").style.display = "block";
+    document.getElementById("downloadCompletedBox").style.display = "none";
+    }
+    });
+
+    connection.start()
+    .then(function () {
+    return connection.invoke("JoinDownloadGroup", jobId);
+    })
+    .catch(function (err) {
+    console.error(err.toString());
+    });
+</script>
