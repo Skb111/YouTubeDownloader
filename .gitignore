@@ -429,4 +429,4 @@ FodyWeavers.xsd
 *.msp
 
 # Visual Studio Code workspace file
-wwwroot/downloads/
+src/YouTubeDownloader.Web/wwwroot/downloads/*
